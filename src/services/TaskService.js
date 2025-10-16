@@ -24,6 +24,20 @@ export class TaskService {
       where: { id: taskId },
     });
 
+    this._validateTaskCanBeCompleted(task);
+
+    const completedTask = await this.db.task.update({
+      where: { id: taskId },
+      data: {
+        status: 'COMPLETED',
+        completedAt: this.clock.now(),
+      },
+    });
+
+    return completedTask;
+  }
+
+  _validateTaskCanBeCompleted(task) {
     if (!task) {
       throw new Error('Task not found');
     }
@@ -35,16 +49,6 @@ export class TaskService {
     if (task.status === 'CANCELLED') {
       throw new Error('Cannot complete a cancelled task');
     }
-
-    const completedTask = await this.db.task.update({
-      where: { id: taskId },
-      data: {
-        status: 'COMPLETED',
-        completedAt: this.clock.now(),
-      },
-    });
-
-    return completedTask;
   }
 
   async _validatePriorityLimit(userId, priority) {

@@ -1,29 +1,10 @@
 import { TaskService } from './services/TaskService.js';
+import { AuthService } from './services/AuthService.js';
 import { createRoutes } from './routes.js';
-
-// In-memory session store (simple implementation for GREEN phase)
-const sessions = new Map();
-
-function generateSessionToken() {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
-}
-
-async function authenticate(req, prisma) {
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-  const token = authHeader.substring(7);
-  const userId = sessions.get(token);
-  if (!userId) {
-    return null;
-  }
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  return user;
-}
 
 export async function startServer(port, prisma) {
   const taskService = new TaskService(prisma);
+  const authService = new AuthService(prisma);
   const routes = createRoutes(prisma, taskService);
 
   const server = Bun.serve({
@@ -45,17 +26,17 @@ export async function startServer(port, prisma) {
       // Auth routes (public)
       if (url.pathname === '/api/auth/login' && req.method === 'POST') {
         const body = await req.json();
-        const user = await prisma.user.findUnique({ where: { email: body.email } });
-        if (!user) {
+        const result = await authService.login(body.email);
+        if (!result) {
           return Response.json({ error: 'User not found' }, { status: 404 });
         }
-        const sessionToken = generateSessionToken();
-        sessions.set(sessionToken, user.id);
-        return Response.json({ user, sessionToken });
+        return Response.json(result);
       }
 
       if (url.pathname === '/api/auth/me' && req.method === 'GET') {
-        const user = await authenticate(req, prisma);
+        const authHeader = req.headers.get('Authorization');
+        const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+        const user = await authService.authenticate(token);
         if (!user) {
           return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -68,7 +49,9 @@ export async function startServer(port, prisma) {
       }
 
       // Protected routes - require authentication
-      const currentUser = await authenticate(req, prisma);
+      const authHeader = req.headers.get('Authorization');
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+      const currentUser = await authService.authenticate(token);
       if (!currentUser) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
       }

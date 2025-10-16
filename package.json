@@ -1,0 +1,21 @@
+{
+  "name": "testjuhitudarendus",
+  "module": "index.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
+    "db:migrate": "prisma migrate dev",
+    "db:reset": "prisma migrate reset",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@prisma/client": "^6.17.1",
+    "jest": "^30.2.0",
+    "prisma": "^6.17.1"
+  }
+}

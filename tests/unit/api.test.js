@@ -4,15 +4,31 @@ import { getTestDb, clearDatabase, closeDatabase } from '../helpers/testDatabase
 describe('Feature 4: REST API Endpoints', () => {
   let db;
   let server;
+  let testUser;
+  let sessionToken;
   const BASE_URL = 'http://localhost:3001';
 
   beforeAll(async () => {
     db = getTestDb();
     await clearDatabase();
 
+    // Create test user for authentication
+    testUser = await db.user.create({
+      data: { name: 'Test User', email: 'test@example.com' },
+    });
+
     // Import and start server (will be implemented)
     const { startServer } = await import('../../src/server.js');
     server = await startServer(3001, db);
+
+    // Login to get session token
+    const loginResponse = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'test@example.com' }),
+    });
+    const loginData = await loginResponse.json();
+    sessionToken = loginData.sessionToken;
   });
 
   afterAll(async () => {
@@ -45,7 +61,9 @@ describe('Feature 4: REST API Endpoints', () => {
       data: { name: 'Jane Doe', email: 'jane@example.com' },
     });
 
-    const response = await fetch(`${BASE_URL}/api/users`);
+    const response = await fetch(`${BASE_URL}/api/users`, {
+      headers: { 'Authorization': `Bearer ${sessionToken}` },
+    });
     expect(response.status).toBe(200);
 
     const users = await response.json();
@@ -54,15 +72,13 @@ describe('Feature 4: REST API Endpoints', () => {
   });
 
   test('should create a task via POST /api/tasks', async () => {
-    const user = await db.user.create({
-      data: { name: 'Task Owner', email: 'owner@example.com' },
-    });
-
     const response = await fetch(`${BASE_URL}/api/tasks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionToken}`,
+      },
       body: JSON.stringify({
-        userId: user.id,
         title: 'Test Task',
         description: 'Test Description',
         priority: 'MEDIUM',
@@ -73,18 +89,15 @@ describe('Feature 4: REST API Endpoints', () => {
     const task = await response.json();
     expect(task.title).toBe('Test Task');
     expect(task.priority).toBe('MEDIUM');
+    expect(task.userId).toBe(testUser.id);
   });
 
   test('should return 400 when creating high-priority task exceeds limit', async () => {
-    const user = await db.user.create({
-      data: { name: 'Busy User', email: 'busy@example.com' },
-    });
-
-    // Create 3 high-priority tasks
+    // Create 3 high-priority tasks for test user
     for (let i = 0; i < 3; i++) {
       await db.task.create({
         data: {
-          userId: user.id,
+          userId: testUser.id,
           title: `High Priority ${i}`,
           priority: 'HIGH',
           status: 'ACTIVE',
@@ -94,9 +107,11 @@ describe('Feature 4: REST API Endpoints', () => {
 
     const response = await fetch(`${BASE_URL}/api/tasks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionToken}`,
+      },
       body: JSON.stringify({
-        userId: user.id,
         title: 'Fourth High Priority',
         priority: 'HIGH',
       }),
@@ -108,13 +123,9 @@ describe('Feature 4: REST API Endpoints', () => {
   });
 
   test('should complete a task via PUT /api/tasks/:id/complete', async () => {
-    const user = await db.user.create({
-      data: { name: 'Completer', email: 'completer@example.com' },
-    });
-
     const task = await db.task.create({
       data: {
-        userId: user.id,
+        userId: testUser.id,
         title: 'Task to Complete',
         priority: 'LOW',
         status: 'ACTIVE',
@@ -123,6 +134,7 @@ describe('Feature 4: REST API Endpoints', () => {
 
     const response = await fetch(`${BASE_URL}/api/tasks/${task.id}/complete`, {
       method: 'PUT',
+      headers: { 'Authorization': `Bearer ${sessionToken}` },
     });
 
     expect(response.status).toBe(200);
@@ -132,16 +144,13 @@ describe('Feature 4: REST API Endpoints', () => {
   });
 
   test('should assign a task via PUT /api/tasks/:id/assign', async () => {
-    const user1 = await db.user.create({
-      data: { name: 'User 1', email: 'user1@example.com' },
-    });
     const user2 = await db.user.create({
       data: { name: 'User 2', email: 'user2@example.com' },
     });
 
     const task = await db.task.create({
       data: {
-        userId: user1.id,
+        userId: testUser.id,
         title: 'Task to Reassign',
         priority: 'MEDIUM',
         status: 'ACTIVE',
@@ -150,7 +159,10 @@ describe('Feature 4: REST API Endpoints', () => {
 
     const response = await fetch(`${BASE_URL}/api/tasks/${task.id}/assign`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionToken}`,
+      },
       body: JSON.stringify({ userId: user2.id }),
     });
 
@@ -162,7 +174,7 @@ describe('Feature 4: REST API Endpoints', () => {
   test('should get statistics via GET /api/stats', async () => {
     await clearDatabase();
 
-    await db.user.create({
+    const statsUser = await db.user.create({
       data: {
         name: 'Stats User',
         email: 'stats@example.com',
@@ -176,7 +188,17 @@ describe('Feature 4: REST API Endpoints', () => {
       },
     });
 
-    const response = await fetch(`${BASE_URL}/api/stats`);
+    // Login as stats user
+    const loginResponse = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'stats@example.com' }),
+    });
+    const { sessionToken: statsToken } = await loginResponse.json();
+
+    const response = await fetch(`${BASE_URL}/api/stats`, {
+      headers: { 'Authorization': `Bearer ${statsToken}` },
+    });
     expect(response.status).toBe(200);
 
     const stats = await response.json();

@@ -19,28 +19,37 @@ export function createRoutes(prisma, taskService) {
       return Response.json(user);
     },
 
-    async handleGetTasks() {
+    async handleGetTasks(currentUser) {
       const tasks = await prisma.task.findMany({
+        where: { userId: currentUser.id },
         include: { user: true },
         orderBy: { createdAt: 'desc' },
       });
       return Response.json(tasks);
     },
 
-    async handleCreateTask(req) {
+    async handleCreateTask(req, currentUser) {
       try {
         const body = await req.json();
-        const task = await taskService.createTask(body);
+        const task = await taskService.createTask({
+          ...body,
+          userId: currentUser.id,
+        });
         return Response.json(task);
       } catch (error) {
         return Response.json({ error: error.message }, { status: 400 });
       }
     },
 
-    async handleCompleteTask(taskId) {
+    async handleCompleteTask(taskId, currentUser) {
       try {
-        const task = await taskService.completeTask(taskId);
-        return Response.json(task);
+        // Check if task belongs to current user
+        const task = await prisma.task.findUnique({ where: { id: taskId } });
+        if (!task || task.userId !== currentUser.id) {
+          return Response.json({ error: 'Forbidden' }, { status: 403 });
+        }
+        const completedTask = await taskService.completeTask(taskId);
+        return Response.json(completedTask);
       } catch (error) {
         return Response.json({ error: error.message }, { status: 400 });
       }

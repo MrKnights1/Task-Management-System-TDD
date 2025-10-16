@@ -1,11 +1,44 @@
 // Task Management System - Frontend
+let sessionToken = localStorage.getItem('sessionToken');
+let currentUser = null;
+
 const API = {
+  getHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken}`;
+    }
+    return headers;
+  },
+  async login(email) {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error);
+    }
+    const data = await res.json();
+    sessionToken = data.sessionToken;
+    currentUser = data.user;
+    localStorage.setItem('sessionToken', sessionToken);
+    return data;
+  },
+  async getCurrentUser() {
+    const res = await fetch('/api/auth/me', {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  },
   async fetchStats() {
-    const res = await fetch('/api/stats');
+    const res = await fetch('/api/stats', { headers: this.getHeaders() });
     return res.json();
   },
   async fetchUsers() {
-    const res = await fetch('/api/users');
+    const res = await fetch('/api/users', { headers: this.getHeaders() });
     return res.json();
   },
   async createUser(name, email) {
@@ -17,14 +50,14 @@ const API = {
     return res.json();
   },
   async fetchTasks() {
-    const res = await fetch('/api/tasks');
+    const res = await fetch('/api/tasks', { headers: this.getHeaders() });
     return res.json();
   },
-  async createTask(userId, title, priority) {
+  async createTask(title, priority) {
     const res = await fetch('/api/tasks', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: parseInt(userId), title, priority }),
+      headers: this.getHeaders(),
+      body: JSON.stringify({ title, priority }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -33,7 +66,10 @@ const API = {
     return res.json();
   },
   async completeTask(taskId) {
-    const res = await fetch(`/api/tasks/${taskId}/complete`, { method: 'PUT' });
+    const res = await fetch(`/api/tasks/${taskId}/complete`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+    });
     return res.json();
   },
 };
@@ -51,7 +87,6 @@ async function loadStats() {
 async function loadUsers() {
   const users = await API.fetchUsers();
   const usersList = document.getElementById('usersList');
-  const userSelect = document.getElementById('taskUserId');
 
   usersList.innerHTML = users.map(u => `
     <div class="user">
@@ -59,9 +94,6 @@ async function loadUsers() {
       <div>${u.email} (${u.tasks.length} active tasks)</div>
     </div>
   `).join('');
-
-  userSelect.innerHTML = '<option value="">Select User</option>' +
-    users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
 }
 
 async function loadTasks() {
@@ -100,10 +132,9 @@ document.getElementById('createUserForm').addEventListener('submit', async (e) =
 document.getElementById('createTaskForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = document.getElementById('taskTitle').value;
-  const userId = document.getElementById('taskUserId').value;
   const priority = document.getElementById('taskPriority').value;
   try {
-    await API.createTask(userId, title, priority);
+    await API.createTask(title, priority);
     e.target.reset();
     await loadAll();
   } catch (error) {
@@ -111,4 +142,50 @@ document.getElementById('createTaskForm').addEventListener('submit', async (e) =
   }
 });
 
-loadAll();
+// Authentication UI
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  try {
+    await API.login(email);
+    showApp();
+    await loadAll();
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  sessionToken = null;
+  currentUser = null;
+  localStorage.removeItem('sessionToken');
+  showLogin();
+});
+
+function showLogin() {
+  document.getElementById('loginView').style.display = 'block';
+  document.getElementById('appView').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('loginView').style.display = 'none';
+  document.getElementById('appView').style.display = 'block';
+  document.getElementById('currentUser').textContent = `Logged in as: ${currentUser.name}`;
+}
+
+// Initialize app
+async function init() {
+  if (sessionToken) {
+    currentUser = await API.getCurrentUser();
+    if (currentUser) {
+      showApp();
+      await loadAll();
+    } else {
+      showLogin();
+    }
+  } else {
+    showLogin();
+  }
+}
+
+init();

@@ -24,6 +24,16 @@ export async function startServer(port, prisma) {
       }
 
       // Auth routes (public)
+      if (url.pathname === '/api/auth/register' && req.method === 'POST') {
+        try {
+          const body = await req.json();
+          const result = await authService.register(body.name, body.email);
+          return Response.json(result);
+        } catch (error) {
+          return Response.json({ error: error.message }, { status: 400 });
+        }
+      }
+
       if (url.pathname === '/api/auth/login' && req.method === 'POST') {
         const body = await req.json();
         const result = await authService.login(body.email);

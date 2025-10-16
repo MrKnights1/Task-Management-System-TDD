@@ -9,6 +9,28 @@ export class AuthService {
     return Math.random().toString(36).substring(2) + Date.now().toString(36);
   }
 
+  async register(name, email) {
+    if (!name || !email) {
+      throw new Error('Name and email are required');
+    }
+
+    // Check if user already exists
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new Error('User with this email already exists');
+    }
+
+    // Create new user
+    const user = await this.prisma.user.create({
+      data: { name, email },
+    });
+
+    // Auto-login: create session
+    const sessionToken = this.generateSessionToken();
+    this.sessions.set(sessionToken, user.id);
+    return { user, sessionToken };
+  }
+
   async login(email) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {

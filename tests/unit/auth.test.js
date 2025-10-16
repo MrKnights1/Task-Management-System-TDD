@@ -23,6 +23,66 @@ afterAll(async () => {
 });
 
 describe('User Authentication', () => {
+  test('POST /api/auth/register should create new user and return session', async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'New User',
+        email: 'newuser@example.com',
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.user.name).toBe('New User');
+    expect(data.user.email).toBe('newuser@example.com');
+    expect(data.user.id).toBeDefined();
+    expect(data.sessionToken).toBeDefined();
+    expect(typeof data.sessionToken).toBe('string');
+
+    // Verify user was created in database
+    const user = await prisma.user.findUnique({
+      where: { email: 'newuser@example.com' },
+    });
+    expect(user).toBeDefined();
+    expect(user.name).toBe('New User');
+  });
+
+  test('POST /api/auth/register should return 400 if email already exists', async () => {
+    // Create existing user
+    await prisma.user.create({
+      data: { name: 'Existing User', email: 'existing@example.com' },
+    });
+
+    const response = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Another User',
+        email: 'existing@example.com',
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.error).toContain('already exists');
+  });
+
+  test('POST /api/auth/register should return 400 if name or email missing', async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'incomplete@example.com',
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
   test('POST /api/auth/login should authenticate user by email', async () => {
     // Create a test user
     const user = await prisma.user.create({

@@ -126,16 +126,24 @@ document.getElementById('createTaskForm').addEventListener('submit', async (e) =
 });
 
 // Authentication UI
+async function handleAuthSuccess() {
+  showApp();
+  await loadAll();
+}
+
+async function handleAuthError(error) {
+  alert(error.message);
+}
+
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = document.getElementById('registerName').value;
   const email = document.getElementById('registerEmail').value;
   try {
     await API.register(name, email);
-    showApp();
-    await loadAll();
+    await handleAuthSuccess();
   } catch (error) {
-    alert(error.message);
+    handleAuthError(error);
   }
 });
 
@@ -144,27 +152,38 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   const email = document.getElementById('loginEmail').value;
   try {
     await API.login(email);
-    showApp();
-    await loadAll();
+    await handleAuthSuccess();
   } catch (error) {
-    alert(error.message);
+    handleAuthError(error);
   }
 });
 
 // Tab switching
-document.getElementById('loginTab').addEventListener('click', () => {
-  document.getElementById('loginTab').classList.add('active');
-  document.getElementById('registerTab').classList.remove('active');
-  document.getElementById('loginFormContainer').style.display = 'block';
-  document.getElementById('registerFormContainer').style.display = 'none';
-});
+function switchToTab(activeTab) {
+  const tabs = {
+    login: {
+      tab: document.getElementById('loginTab'),
+      container: document.getElementById('loginFormContainer'),
+    },
+    register: {
+      tab: document.getElementById('registerTab'),
+      container: document.getElementById('registerFormContainer'),
+    },
+  };
 
-document.getElementById('registerTab').addEventListener('click', () => {
-  document.getElementById('registerTab').classList.add('active');
-  document.getElementById('loginTab').classList.remove('active');
-  document.getElementById('registerFormContainer').style.display = 'block';
-  document.getElementById('loginFormContainer').style.display = 'none';
-});
+  Object.keys(tabs).forEach(key => {
+    if (key === activeTab) {
+      tabs[key].tab.classList.add('active');
+      tabs[key].container.style.display = 'block';
+    } else {
+      tabs[key].tab.classList.remove('active');
+      tabs[key].container.style.display = 'none';
+    }
+  });
+}
+
+document.getElementById('loginTab').addEventListener('click', () => switchToTab('login'));
+document.getElementById('registerTab').addEventListener('click', () => switchToTab('register'));
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
   sessionToken = null;

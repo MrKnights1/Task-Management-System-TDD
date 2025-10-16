@@ -10,7 +10,10 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "start": "bun index.js",
+    "dev": "bun --hot index.js",
+    "setup": "cp -n .env.example .env 2>/dev/null || true && bun install && bunx prisma generate && bunx prisma migrate deploy && bun start"
   },
   "devDependencies": {
     "@jest/globals": "^30.2.0",

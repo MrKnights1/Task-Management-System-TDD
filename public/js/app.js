@@ -10,6 +10,22 @@ const API = {
     }
     return headers;
   },
+  async register(name, email) {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error);
+    }
+    const data = await res.json();
+    sessionToken = data.sessionToken;
+    currentUser = data.user;
+    localStorage.setItem('sessionToken', sessionToken);
+    return data;
+  },
   async login(email) {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
@@ -35,18 +51,6 @@ const API = {
   },
   async fetchStats() {
     const res = await fetch('/api/stats', { headers: this.getHeaders() });
-    return res.json();
-  },
-  async fetchUsers() {
-    const res = await fetch('/api/users', { headers: this.getHeaders() });
-    return res.json();
-  },
-  async createUser(name, email) {
-    const res = await fetch('/api/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email }),
-    });
     return res.json();
   },
   async fetchTasks() {
@@ -84,18 +88,6 @@ async function loadStats() {
   `;
 }
 
-async function loadUsers() {
-  const users = await API.fetchUsers();
-  const usersList = document.getElementById('usersList');
-
-  usersList.innerHTML = users.map(u => `
-    <div class="user">
-      <div><strong>${u.name}</strong></div>
-      <div>${u.email} (${u.tasks.length} active tasks)</div>
-    </div>
-  `).join('');
-}
-
 async function loadTasks() {
   const tasks = await API.fetchTasks();
   document.getElementById('tasksList').innerHTML = tasks.map(t => `
@@ -117,17 +109,8 @@ async function completeTask(id) {
 }
 
 async function loadAll() {
-  await Promise.all([loadStats(), loadUsers(), loadTasks()]);
+  await Promise.all([loadStats(), loadTasks()]);
 }
-
-document.getElementById('createUserForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const name = document.getElementById('userName').value;
-  const email = document.getElementById('userEmail').value;
-  await API.createUser(name, email);
-  e.target.reset();
-  await loadAll();
-});
 
 document.getElementById('createTaskForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -143,17 +126,64 @@ document.getElementById('createTaskForm').addEventListener('submit', async (e) =
 });
 
 // Authentication UI
+async function handleAuthSuccess() {
+  showApp();
+  await loadAll();
+}
+
+async function handleAuthError(error) {
+  alert(error.message);
+}
+
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('registerName').value;
+  const email = document.getElementById('registerEmail').value;
+  try {
+    await API.register(name, email);
+    await handleAuthSuccess();
+  } catch (error) {
+    handleAuthError(error);
+  }
+});
+
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('loginEmail').value;
   try {
     await API.login(email);
-    showApp();
-    await loadAll();
+    await handleAuthSuccess();
   } catch (error) {
-    alert(error.message);
+    handleAuthError(error);
   }
 });
+
+// Tab switching
+function switchToTab(activeTab) {
+  const tabs = {
+    login: {
+      tab: document.getElementById('loginTab'),
+      container: document.getElementById('loginFormContainer'),
+    },
+    register: {
+      tab: document.getElementById('registerTab'),
+      container: document.getElementById('registerFormContainer'),
+    },
+  };
+
+  Object.keys(tabs).forEach(key => {
+    if (key === activeTab) {
+      tabs[key].tab.classList.add('active');
+      tabs[key].container.style.display = 'block';
+    } else {
+      tabs[key].tab.classList.remove('active');
+      tabs[key].container.style.display = 'none';
+    }
+  });
+}
+
+document.getElementById('loginTab').addEventListener('click', () => switchToTab('login'));
+document.getElementById('registerTab').addEventListener('click', () => switchToTab('register'));
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
   sessionToken = null;

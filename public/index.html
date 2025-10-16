@@ -11,11 +11,25 @@
     <div id="loginView">
       <div class="card login-card">
         <h1>Task Management System</h1>
-        <h2>Login</h2>
-        <form id="loginForm">
-          <input type="email" id="loginEmail" placeholder="Enter your email" required>
-          <button type="submit">Login</button>
-        </form>
+        <div id="authTabs">
+          <button id="loginTab" class="tab-btn active">Login</button>
+          <button id="registerTab" class="tab-btn">Register</button>
+        </div>
+
+        <div id="loginFormContainer">
+          <form id="loginForm">
+            <input type="email" id="loginEmail" placeholder="Enter your email" required>
+            <button type="submit">Login</button>
+          </form>
+        </div>
+
+        <div id="registerFormContainer" style="display: none;">
+          <form id="registerForm">
+            <input type="text" id="registerName" placeholder="Your name" required>
+            <input type="email" id="registerEmail" placeholder="Your email" required>
+            <button type="submit">Register</button>
+          </form>
+        </div>
       </div>
     </div>
 
@@ -30,17 +44,7 @@
       </header>
 
       <main>
-      <section class="card">
-        <h2>Users</h2>
-        <form id="createUserForm">
-          <input type="text" id="userName" placeholder="Name" required>
-          <input type="email" id="userEmail" placeholder="Email" required>
-          <button type="submit">Create User</button>
-        </form>
-        <div id="usersList"></div>
-      </section>
-
-      <section class="card">
+      <section class="card tasks-section">
         <h2>My Tasks</h2>
         <form id="createTaskForm">
           <input type="text" id="taskTitle" placeholder="Title" required>

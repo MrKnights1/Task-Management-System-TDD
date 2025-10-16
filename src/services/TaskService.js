@@ -37,6 +37,32 @@ export class TaskService {
     return completedTask;
   }
 
+  async assignTask(taskId, newUserId) {
+    await this._validateUserAvailability(newUserId);
+
+    const assignedTask = await this.db.task.update({
+      where: { id: taskId },
+      data: {
+        userId: newUserId,
+      },
+    });
+
+    return assignedTask;
+  }
+
+  async _validateUserAvailability(userId) {
+    const activeTaskCount = await this.db.task.count({
+      where: {
+        userId: userId,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (activeTaskCount >= 10) {
+      throw new Error('User already has 10 active tasks');
+    }
+  }
+
   _validateTaskCanBeCompleted(task) {
     if (!task) {
       throw new Error('Task not found');

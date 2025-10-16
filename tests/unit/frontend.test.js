@@ -44,9 +44,9 @@ describe('Feature 5: Web UI - Static File Serving', () => {
     expect(response.status).toBe(200);
   });
 
-  test('should return 404 for non-existent files', async () => {
-    const response = await fetch(`${BASE_URL}/nonexistent.html`);
+  test('should return 401 for non-public paths without authentication', async () => {
+    const response = await fetch(`${BASE_URL}/api/tasks`);
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(401);
   });
 });

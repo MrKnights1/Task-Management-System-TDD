@@ -93,3 +93,19 @@ button:hover {
 .priority-LOW {
   border-left: 4px solid #28a745;
 }
+#loginView {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+}
+.login-card {
+  max-width: 400px;
+  width: 100%;
+}
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}

@@ -10,6 +10,17 @@ export async function startServer(port, prisma) {
     async fetch(req) {
       const url = new URL(req.url);
 
+      // Serve static files
+      if (url.pathname === '/') {
+        return new Response(Bun.file('./public/index.html'));
+      }
+      if (url.pathname.startsWith('/css/')) {
+        return new Response(Bun.file(`./public${url.pathname}`));
+      }
+      if (url.pathname.startsWith('/js/')) {
+        return new Response(Bun.file(`./public${url.pathname}`));
+      }
+
       // API Routes
       if (url.pathname === '/api/users' && req.method === 'GET') {
         return routes.handleGetUsers();

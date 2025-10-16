@@ -4,22 +4,8 @@ export class TaskService {
   }
 
   async createTask({ userId, title, description, priority }) {
-    // Validate high-priority task limit
-    if (priority === 'HIGH') {
-      const activeHighPriorityCount = await this.db.task.count({
-        where: {
-          userId: userId,
-          priority: 'HIGH',
-          status: 'ACTIVE',
-        },
-      });
+    await this._validatePriorityLimit(userId, priority);
 
-      if (activeHighPriorityCount >= 3) {
-        throw new Error('User already has 3 active high-priority tasks');
-      }
-    }
-
-    // Create the task
     const task = await this.db.task.create({
       data: {
         userId,
@@ -30,5 +16,23 @@ export class TaskService {
     });
 
     return task;
+  }
+
+  async _validatePriorityLimit(userId, priority) {
+    if (priority !== 'HIGH') {
+      return;
+    }
+
+    const activeHighPriorityCount = await this.db.task.count({
+      where: {
+        userId: userId,
+        priority: 'HIGH',
+        status: 'ACTIVE',
+      },
+    });
+
+    if (activeHighPriorityCount >= 3) {
+      throw new Error('User already has 3 active high-priority tasks');
+    }
   }
 }

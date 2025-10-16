@@ -38,19 +38,8 @@ export class TaskService {
   }
 
   async assignTask(taskId, newUserId) {
-    // Check if target user has capacity
-    const activeTaskCount = await this.db.task.count({
-      where: {
-        userId: newUserId,
-        status: 'ACTIVE',
-      },
-    });
+    await this._validateUserAvailability(newUserId);
 
-    if (activeTaskCount >= 10) {
-      throw new Error('User already has 10 active tasks');
-    }
-
-    // Assign the task
     const assignedTask = await this.db.task.update({
       where: { id: taskId },
       data: {
@@ -59,6 +48,19 @@ export class TaskService {
     });
 
     return assignedTask;
+  }
+
+  async _validateUserAvailability(userId) {
+    const activeTaskCount = await this.db.task.count({
+      where: {
+        userId: userId,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (activeTaskCount >= 10) {
+      throw new Error('User already has 10 active tasks');
+    }
   }
 
   _validateTaskCanBeCompleted(task) {
